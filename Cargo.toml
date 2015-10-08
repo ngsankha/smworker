@@ -1,0 +1,11 @@
+[package]
+name = "smworker"
+version = "0.0.1"
+authors = ["Sankha Narayan Guria <sankha93@gmail.com>"]
+
+[lib]
+name = "smworker"
+path = "src/lib.rs"
+
+[dependencies.js]
+git = "https://github.com/servo/rust-mozjs"
