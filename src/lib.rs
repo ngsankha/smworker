@@ -11,7 +11,7 @@ use std::str;
 use js::{JSCLASS_RESERVED_SLOTS_MASK,JSCLASS_RESERVED_SLOTS_SHIFT,JSCLASS_GLOBAL_SLOT_COUNT,JSCLASS_IS_GLOBAL, JSCLASS_IMPLEMENTS_BARRIERS};
 use js::jsapi::JS_GlobalObjectTraceHook;
 use js::jsapi::{CallArgs,CompartmentOptions,OnNewGlobalHookOption,Rooted,Value};
-use js::jsapi::{JS_DefineFunction,JS_Init,JS_NewGlobalObject, JS_InitStandardClasses,JS_EncodeStringToUTF8, JS_ReportPendingException, JS_BufferIsCompilableUnit, JS_DestroyContext, JS_DestroyRuntime, JS_ShutDown, CurrentGlobalOrNull, JS_LeaveCompartment};
+use js::jsapi::{JS_DefineFunction,JS_Init,JS_NewGlobalObject, JS_InitStandardClasses,JS_EncodeStringToUTF8, JS_ReportPendingException, JS_BufferIsCompilableUnit, JS_DestroyContext, JS_DestroyRuntime, JS_ShutDown, CurrentGlobalOrNull, JS_LeaveCompartment, JS_ReportError};
 use js::jsapi::{JSAutoCompartment,JSAutoRequest,JSContext,JSClass};
 use js::jsapi::{JS_SetGCParameter, JSGCParamKey, JSGCMode};
 use js::jsapi::{RootedValue, RootedObject, HandleObject, HandleValue};
@@ -94,13 +94,13 @@ pub fn new() -> SMWorker {
   SMWorker { runtime: runtime, cx: cx, ac: ac, tx: tx, rx: rx }
 }
 
-unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> u8 {
+unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> bool {
     let args = CallArgs::from_vp(vp, argc);
 
-    /*if args._base.argc_ != 1 {
+    if args._base.argc_ != 1 {
         JS_ReportError(context, b"puts() requires exactly 1 argument\0".as_ptr() as *const libc::c_char);
-        return 1;
-    }*/
+        return false;
+    }
 
     let arg = args.get(0);
     let js = js::rust::ToString(context, arg);
@@ -110,5 +110,5 @@ unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) ->
     println!("{}", str::from_utf8(message.to_bytes()).unwrap());
 
     args.rval().set(UndefinedValue());
-    return 0;
+    return true;
 }
