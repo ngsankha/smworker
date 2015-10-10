@@ -5,13 +5,14 @@ extern crate libc;
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::ffi::CStr;
+use std::ffi;
 use std::ptr;
 use std::str;
 
 use js::{JSCLASS_RESERVED_SLOTS_MASK,JSCLASS_RESERVED_SLOTS_SHIFT,JSCLASS_GLOBAL_SLOT_COUNT,JSCLASS_IS_GLOBAL, JSCLASS_IMPLEMENTS_BARRIERS};
 use js::jsapi::JS_GlobalObjectTraceHook;
 use js::jsapi::{CallArgs,CompartmentOptions,OnNewGlobalHookOption,Rooted,Value};
-use js::jsapi::{JS_DefineFunction,JS_Init,JS_NewGlobalObject, JS_InitStandardClasses,JS_EncodeStringToUTF8, JS_ReportPendingException, JS_BufferIsCompilableUnit, JS_DestroyContext, JS_DestroyRuntime, JS_ShutDown, CurrentGlobalOrNull, JS_LeaveCompartment, JS_ReportError};
+use js::jsapi::{JS_DefineFunction,JS_Init,JS_NewGlobalObject, JS_InitStandardClasses,JS_EncodeStringToUTF8, JS_ReportPendingException, JS_BufferIsCompilableUnit, JS_DestroyContext, JS_DestroyRuntime, JS_ShutDown, CurrentGlobalOrNull, JS_ReportError};
 use js::jsapi::{JSAutoCompartment,JSAutoRequest,JSContext,JSClass};
 use js::jsapi::{JS_SetGCParameter, JSGCParamKey, JSGCMode};
 use js::jsapi::{RootedValue, RootedObject, HandleObject, HandleValue};
@@ -54,14 +55,14 @@ pub struct SMWorker {
 }
 
 impl SMWorker {
-  pub fn execute(&self, label: String, script: String) {
+  pub fn execute(&self, label: String, script: String) -> Result<bool, &'static str> {
     let cx = self.cx;
     let global = unsafe { CurrentGlobalOrNull(cx) };
     let global_root = Rooted::new(cx, global);
     let global = global_root.handle();
     match self.runtime.evaluate_script(global, script, label, 1) {
-      Err(_) => unsafe { JS_ReportPendingException(cx); },
-      _ => ()
+      Err(_) => unsafe { JS_ReportPendingException(cx); Err("Uncaught exception during script execution") },
+      _ => Ok(true)
     }
   }
 }
