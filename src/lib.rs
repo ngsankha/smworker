@@ -48,11 +48,14 @@ struct JSOptions {
 
 pub struct SMWorker {
   ac: JSAutoCompartment,
+  ar: JSAutoRequest,
   cx: *mut JSContext,
   runtime: Runtime,
   tx: Sender<String>,
   rx: Receiver<String>
 }
+
+static INIT: Once = ONCE_INIT;
 
 impl SMWorker {
   pub fn execute(&self, label: String, script: String) -> Result<bool, &'static str> {
@@ -64,6 +67,10 @@ impl SMWorker {
       Err(_) => unsafe { JS_ReportPendingException(cx); Err("Uncaught exception during script execution") },
       _ => Ok(true)
     }
+  }
+
+  pub fn send(&self, msg: String) {
+
   }
 }
 
@@ -78,7 +85,7 @@ pub fn new() -> SMWorker {
   let cx = runtime.cx();
   let h_option = OnNewGlobalHookOption::FireOnNewGlobalHook;
   let c_option = CompartmentOptions::default();
-  let _ar = JSAutoRequest::new(cx);
+  let ar = JSAutoRequest::new(cx);
   let global = unsafe { JS_NewGlobalObject(cx, CLASS, ptr::null_mut(), h_option, &c_option) };
   let global_root = Rooted::new(cx, global);
   let global = global_root.handle();
@@ -92,7 +99,7 @@ pub fn new() -> SMWorker {
     assert!(!function.is_null());
   }
 
-  SMWorker { runtime: runtime, cx: cx, ac: ac, tx: tx, rx: rx }
+  SMWorker { ac: ac, ar: ar, cx: cx, runtime: runtime, tx: tx, rx: rx }
 }
 
 unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> bool {

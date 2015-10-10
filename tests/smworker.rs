@@ -26,7 +26,7 @@ fn test_builtin_err() {
   let worker = smworker::new();
   let code = "       \
   var a = \"abc\";   \
-  a.abc(0, 1); \
+  a.abc(0, 1);       \
   ";
   assert!(worker.execute("test_builtin_err".to_string(), code.to_string()).is_err());
 }
