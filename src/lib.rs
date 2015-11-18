@@ -1,13 +1,15 @@
 extern crate js;
 extern crate libc;
 
-
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
+use std::thread;
+use std::sync::{Once, ONCE_INIT};
 use std::ffi::CStr;
 use std::ffi;
 use std::ptr;
 use std::str;
+use std::mem;
 
 use js::{JSCLASS_RESERVED_SLOTS_MASK,JSCLASS_RESERVED_SLOTS_SHIFT,JSCLASS_GLOBAL_SLOT_COUNT,JSCLASS_IS_GLOBAL, JSCLASS_IMPLEMENTS_BARRIERS};
 use js::jsapi::JS_GlobalObjectTraceHook;
@@ -55,8 +57,6 @@ pub struct SMWorker {
   rx: Receiver<String>
 }
 
-static INIT: Once = ONCE_INIT;
-
 impl SMWorker {
   pub fn execute(&self, label: String, script: String) -> Result<bool, &'static str> {
     let cx = self.cx;
@@ -92,17 +92,7 @@ pub fn new() -> SMWorker {
   let ac = JSAutoCompartment::new(cx, global.get());
 
   unsafe {
-    JS_SetGCParameter(runtime.rt(), JSGCParamKey::JSGC_MODE, JSGCMode::JSGC_MODE_INCREMENTAL as u32);
-    JS_InitStandardClasses(cx, global);
-    let function = JS_DefineFunction(cx, global, b"puts\0".as_ptr() as *const libc::c_char,
-                                   Some(puts), 1, 0);
-    assert!(!function.is_null());
-  }
-
-  SMWorker { ac: ac, ar: ar, cx: cx, runtime: runtime, tx: tx, rx: rx }
-}
-
-unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> bool {
+    unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> bool {
     let args = CallArgs::from_vp(vp, argc);
 
     if args._base.argc_ != 1 {
@@ -119,4 +109,14 @@ unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) ->
 
     args.rval().set(UndefinedValue());
     return true;
+    }
+
+    JS_SetGCParameter(runtime.rt(), JSGCParamKey::JSGC_MODE, JSGCMode::JSGC_MODE_INCREMENTAL as u32);
+    JS_InitStandardClasses(cx, global);
+    let function = JS_DefineFunction(cx, global, b"puts\0".as_ptr() as *const libc::c_char,
+                                     Some(puts), 1, 0);
+    assert!(!function.is_null());
+  }
+
+  SMWorker { ac: ac, ar: ar, cx: cx, runtime: runtime, tx: tx, rx: rx }
 }

@@ -8,6 +8,10 @@ name = "smworker"
 path = "src/lib.rs"
 test = true
 
+[[bin]]
+name = "smworker-bin"
+path = "src/bin.rs"
+
 [dependencies.js]
 git = "https://github.com/servo/rust-mozjs"
 
