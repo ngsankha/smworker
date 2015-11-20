@@ -2,7 +2,7 @@ extern crate smworker;
 
 fn main() {
   println!("Hello");
-  let worker = smworker::new();
+  let worker = smworker::new(|x| println!("{:?}", x));
   let code = "     \
   puts(\"World\"); \
   ";

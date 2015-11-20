@@ -48,16 +48,17 @@ struct JSOptions {
   script: String,
 }
 
-pub struct SMWorker {
+pub struct SMWorker<F> {
   ac: JSAutoCompartment,
   ar: JSAutoRequest,
   cx: *mut JSContext,
   runtime: Runtime,
+  cb: F,
   tx: Sender<String>,
   rx: Receiver<String>
 }
 
-impl SMWorker {
+impl<F> SMWorker<F> {
   pub fn execute(&self, label: String, script: String) -> Result<bool, &'static str> {
     let cx = self.cx;
     let global = unsafe { CurrentGlobalOrNull(cx) };
@@ -74,7 +75,9 @@ impl SMWorker {
   }
 }
 
-pub fn new() -> SMWorker {
+pub fn new<F>(cb: F) -> SMWorker<F>
+  where F: Fn(String) {
+
   let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
 
   unsafe {
@@ -93,22 +96,22 @@ pub fn new() -> SMWorker {
 
   unsafe {
     unsafe extern "C" fn puts(context: *mut JSContext, argc: u32, vp: *mut Value) -> bool {
-    let args = CallArgs::from_vp(vp, argc);
+      let args = CallArgs::from_vp(vp, argc);
 
-    if args._base.argc_ != 1 {
+      if args._base.argc_ != 1 {
         JS_ReportError(context, b"puts() requires exactly 1 argument\0".as_ptr() as *const libc::c_char);
         return false;
-    }
+      }
 
-    let arg = args.get(0);
-    let js = js::rust::ToString(context, arg);
-    let message_root = Rooted::new(context, js);
-    let message = JS_EncodeStringToUTF8(context, message_root.handle());
-    let message = CStr::from_ptr(message);
-    println!("{}", str::from_utf8(message.to_bytes()).unwrap());
+      let arg = args.get(0);
+      let js = js::rust::ToString(context, arg);
+      let message_root = Rooted::new(context, js);
+      let message = JS_EncodeStringToUTF8(context, message_root.handle());
+      let message = CStr::from_ptr(message);
+      println!("{}", str::from_utf8(message.to_bytes()).unwrap());
 
-    args.rval().set(UndefinedValue());
-    return true;
+      args.rval().set(UndefinedValue());
+      return true;
     }
 
     JS_SetGCParameter(runtime.rt(), JSGCParamKey::JSGC_MODE, JSGCMode::JSGC_MODE_INCREMENTAL as u32);
@@ -118,5 +121,5 @@ pub fn new() -> SMWorker {
     assert!(!function.is_null());
   }
 
-  SMWorker { ac: ac, ar: ar, cx: cx, runtime: runtime, tx: tx, rx: rx }
+  SMWorker { ac: ac, ar: ar, cx: cx, runtime: runtime, cb: cb, tx: tx, rx: rx }
 }
